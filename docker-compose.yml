@@ -1,0 +1,50 @@
+version: '3'
+services:
+  monitoring-go-app:
+    build: .
+    ports:
+      - '8080:8080'
+    links:
+      - fluentd
+    logging:
+      driver: 'fluentd'
+      options:
+        fluentd-address: localhost:24224
+        tag: monitoring.go.app
+
+  # LOGGING - EFK stack
+  fluentd:
+    build: ./fluentd
+    volumes:
+      - ./fluentd/conf:/fluentd/etc
+    links:
+      - 'elasticsearch'
+    ports:
+      - '24224:24224'
+      - '24224:24224/udp'
+
+  elasticsearch:
+    image: elasticsearch:6.6.2
+    expose:
+      - 9200
+    ports:
+      - '9200:9200'
+    ulimits:
+      nofile:
+        soft: 90000
+        hard: 90000
+
+  kibana:
+    image: kibana:6.6.2
+    links:
+      - 'elasticsearch'
+    ports:
+      - '5601:5601'
+
+  # METRICS - Prometheus
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - '9090:9090'
